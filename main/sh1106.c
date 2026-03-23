@@ -29,7 +29,7 @@ typedef struct {
     uint8_t data[];
 } Bitmap_t;
 
-void sh1106_clear_frame(SH1106_t display);
+void sh1106_clear_frame(SH1106_t *display);
 
 static inline uint8_t sh1106_set_page(uint8_t page) {
     return 0xB0 | page;
@@ -70,8 +70,12 @@ SH1106_config_t sh1106_default_config() {
     return config;
 }
 
-SH1106_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle) {
-    ESP_ERROR_CHECK(i2c_master_probe(i2c_master_bus_handle, 0x3C, 500));
+esp_err_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle, SH1106_t *display) {
+    esp_err_t err;
+    err = i2c_master_probe(i2c_handle, 0x3C, 500);
+    if (err != ESP_OK) {
+        return err;
+    };
 
     i2c_device_config_t sh1106_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -82,15 +86,16 @@ SH1106_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle) {
 
     i2c_master_dev_handle_t sh1106_handle;
 
-    ESP_ERROR_CHECK(i2c_master_bus_add_device(i2c_handle, &sh1106_config, &sh1106_handle));
+    err = i2c_master_bus_add_device(i2c_handle, &sh1106_config, &sh1106_handle);
+    if (err != ESP_OK) {
+        return err;
+    }
 
-    SH1106_t sh1106 = {
-        .handle = sh1106_handle,
-        .frame_change_amt = 0,
-        .frame_mutex = xSemaphoreCreateMutex(),
-        .page_change = 0x00,
-        .frame_cleared = false,
-    };
+    display->handle = sh1106_handle;
+    display->frame_change_amt = 0;
+    display->frame_mutex = xSemaphoreCreateMutex();
+    display->page_change = 0x00;
+    display->frame_cleared = false;
 
     // SH1106 initialization
     uint8_t init_cmd_buf[] = {
@@ -120,7 +125,7 @@ SH1106_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle) {
         0xAF,
     };
 
-    i2c_master_transmit(sh1106.handle, init_cmd_buf, sizeof(init_cmd_buf), 1000);
+    i2c_master_transmit(display->handle, init_cmd_buf, sizeof(init_cmd_buf), 1000);
 
     // Clear display
     for (uint8_t page = 0; page < 8; page++) {
@@ -131,34 +136,33 @@ SH1106_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle) {
             sh1106_set_lower_column(0),
         };
 
-        i2c_master_transmit(sh1106.handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
+        i2c_master_transmit(display->handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
 
         uint8_t clear_buf[133];
         clear_buf[0] = 0x40;
         memset(clear_buf + sizeof(*clear_buf), 0x00, 132);
 
-        i2c_master_transmit(sh1106.handle, clear_buf, 133, 500);
+        i2c_master_transmit(display->handle, clear_buf, 133, 500);
     }
 
-    sh1106_clear_frame(sh1106);
-    sh1106.frame_mutex = xSemaphoreCreateMutex();
+    sh1106_clear_frame(display);
 }
 
-void sh1106_clear_frame(SH1106_t display) {
-    memset(display.frame_buf, 0x00, sizeof(display.frame_buf));
-    memset(display.frame_change, 0x00, sizeof(display.frame_change));
-    display.frame_change_amt = 0;
-    display.page_change = 0x00;
-    display.frame_cleared = true;
+void sh1106_clear_frame(SH1106_t *display) {
+    memset(display->frame_buf, 0x00, sizeof(display->frame_buf));
+    memset(display->frame_change, 0x00, sizeof(display->frame_change));
+    display->frame_change_amt = 0;
+    display->page_change = 0x00;
+    display->frame_cleared = true;
 }
 
-void sh1106_clear_frame_changes(SH1106_t display) {
-    memset(display.frame_change, 0x00, sizeof(display.frame_change));
-    display.frame_change_amt = 0;
-    display.page_change = 0x00;
+void sh1106_clear_frame_changes(SH1106_t *display) {
+    memset(display->frame_change, 0x00, sizeof(display->frame_change));
+    display->frame_change_amt = 0;
+    display->page_change = 0x00;
 }
 
-void sh1106_update_full_display(SH1106_t display) {
+void sh1106_update_full_display(SH1106_t *display) {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t pos_cmd_buf[] = {
@@ -167,27 +171,27 @@ void sh1106_update_full_display(SH1106_t display) {
             sh1106_set_upper_column(2),
             sh1106_set_lower_column(2),
         };
-        i2c_master_transmit(display.handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
+        i2c_master_transmit(display->handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
 
         uint8_t data_buf[129];
         data_buf[0] = 0x40;
-        memcpy(data_buf + sizeof(*data_buf), display.frame_buf + page * 128, 128);
-        i2c_master_transmit(display.handle, data_buf, 129, 500);
+        memcpy(data_buf + sizeof(*data_buf), display->frame_buf + page * 128, 128);
+        i2c_master_transmit(display->handle, data_buf, 129, 500);
     }
     xSemaphoreGive(i2c_mutex);
 }
 
-void sh1106_update_part_display(SH1106_t display) {
+void sh1106_update_part_display(SH1106_t *display) {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
-        if (!((display.page_change & (0x01 << page)) > 0x00))
+        if (!((display->page_change & (0x01 << page)) > 0x00))
             continue;
         bool previous = false;
         uint8_t data_buf[129];
         data_buf[0] = 0x40;
         uint8_t data_amt = 0;
         for (uint8_t col = 0; col < 128; col++) {
-            bool update = bit_check(display.frame_change[page * 16 + col / 8], col % 8);
+            bool update = bit_check(display->frame_change[page * 16 + col / 8], col % 8);
             if (!update && previous) {
                 uint8_t pos_cmd_buf[] = {
                     0x00,
@@ -195,12 +199,12 @@ void sh1106_update_part_display(SH1106_t display) {
                     sh1106_set_upper_column(col - data_amt + 2),
                     sh1106_set_lower_column(col - data_amt + 2),
                 };
-                i2c_master_transmit(display.handle, pos_cmd_buf, sizeof(pos_cmd_buf), 500);
-                i2c_master_transmit(display.handle, data_buf, data_amt + 1, 500);
+                i2c_master_transmit(display->handle, pos_cmd_buf, sizeof(pos_cmd_buf), 500);
+                i2c_master_transmit(display->handle, data_buf, data_amt + 1, 500);
                 data_amt = 0;
             }
             if (update) {
-                data_buf[data_amt++ + 1] = display.frame_buf[page * 128 + col];
+                data_buf[data_amt++ + 1] = display->frame_buf[page * 128 + col];
             }
             previous = update;
         }
@@ -211,59 +215,59 @@ void sh1106_update_part_display(SH1106_t display) {
                 sh1106_set_upper_column(128 - data_amt + 2),
                 sh1106_set_lower_column(128 - data_amt + 2),
             };
-            i2c_master_transmit(display.handle, pos_cmd_buf, sizeof(pos_cmd_buf), 500);
-            i2c_master_transmit(display.handle, data_buf, data_amt + 1, 500);
+            i2c_master_transmit(display->handle, pos_cmd_buf, sizeof(pos_cmd_buf), 500);
+            i2c_master_transmit(display->handle, data_buf, data_amt + 1, 500);
         }
     }
     xSemaphoreGive(i2c_mutex);
 }
 
-void sh1106_update_display(SH1106_t display) {
+void sh1106_update_display(SH1106_t *display) {
     while (1) {
-        xSemaphoreTake(display.frame_mutex, portMAX_DELAY);
-        if (display.frame_cleared || display.frame_change_amt > 32) {
+        xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
+        if (display->frame_cleared || display->frame_change_amt > 32) {
             sh1106_update_full_display(display);
-            display.frame_cleared = false;
+            display->frame_cleared = false;
         } else {
             sh1106_update_part_display(display);
         }
         sh1106_clear_frame_changes(display);
-        xSemaphoreGive(display.frame_mutex);
+        xSemaphoreGive(display->frame_mutex);
     }
 }
 
-void sh1106_draw_pixel(SH1106_t display, uint8_t x, uint8_t y, bool on) {
+void sh1106_draw_pixel(SH1106_t *display, uint8_t x, uint8_t y, bool on) {
     if (x >= 128 || y >= 64) {
         return;
     }
     bool change_needed;
     if (on) {
-        if (bit_check(display.frame_buf[y / 8 * 128 + x], y % 8)) {
+        if (bit_check(display->frame_buf[y / 8 * 128 + x], y % 8)) {
             change_needed = false;
         } else {
             change_needed = true;
-            display.frame_buf[y / 8 * 128 + x] |= 0x01 << (y % 8);
+            display->frame_buf[y / 8 * 128 + x] |= 0x01 << (y % 8);
         }
     } else {
-        if (!bit_check(display.frame_buf[y / 8 * 128 + x], y % 8)) {
+        if (!bit_check(display->frame_buf[y / 8 * 128 + x], y % 8)) {
             change_needed = false;
         } else {
             change_needed = true;
-            display.frame_buf[y / 8 * 128 + x] &= (0x01 << (y % 8)) ^ 0xFF;
+            display->frame_buf[y / 8 * 128 + x] &= (0x01 << (y % 8)) ^ 0xFF;
         }
     }
     if (!change_needed) {
         return;
     }
-    bool change_set = bit_check(display.frame_change[y / 8 * 16 + x / 8], x % 8);
+    bool change_set = bit_check(display->frame_change[y / 8 * 16 + x / 8], x % 8);
     if (!change_set) {
-        display.frame_change[y / 8 * 16 + x / 8] |= 0x01 << (x % 8);
-        display.page_change |= 0x01 << (y / 8);
-        display.frame_change_amt++;
+        display->frame_change[y / 8 * 16 + x / 8] |= 0x01 << (x % 8);
+        display->page_change |= 0x01 << (y / 8);
+        display->frame_change_amt++;
     }
 } 
 
-void sh1106_draw_bitmap(SH1106_t display, Bitmap_t bitmap) {
+void sh1106_draw_bitmap(SH1106_t *display, Bitmap_t bitmap) {
     for (uint8_t y = 0; y < bitmap.y_size; y++) {
         for (uint8_t x = 0; x < bitmap.x_size; x++) {
             sh1106_draw_pixel(display, x + bitmap.x, y + bitmap.y, bitmap.data[y * bitmap.x_size + x]);
