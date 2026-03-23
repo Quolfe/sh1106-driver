@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-void clear_frame();
+void sh1106_clear_frame();
 
 i2c_master_bus_handle_t i2c_master_bus_handle;
 i2c_master_dev_handle_t sh1106_handle;
@@ -54,7 +54,7 @@ void init_i2c() {
     i2c_mutex = xSemaphoreCreateMutex();
 }
 
-void init_sh1106() {
+void sh1106_init() {
     ESP_ERROR_CHECK(i2c_master_probe(i2c_master_bus_handle, 0x3C, 500));
 
     i2c_device_config_t sh1106_config = {
@@ -113,11 +113,25 @@ void init_sh1106() {
         i2c_master_transmit(sh1106_handle, clear_buf, 133, 500);
     }
 
-    clear_frame();
+    sh1106_clear_frame();
     frame_mutex = xSemaphoreCreateMutex();
 }
 
-void update_full_display() {
+void sh1106_clear_frame() {
+    memset(frame_buf, 0x00, sizeof(frame_buf));
+    memset(frame_change, 0x00, sizeof(frame_change));
+    frame_change_amt = 0;
+    page_change = 0x00;
+    frame_cleared = true;
+}
+
+void sh1106_clear_frame_changes() {
+    memset(frame_change, 0x00, sizeof(frame_change));
+    frame_change_amt = 0;
+    page_change = 0x00;
+}
+
+void sh1106_update_full_display() {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t pos_cmd_buf[] = {
@@ -136,7 +150,7 @@ void update_full_display() {
     xSemaphoreGive(i2c_mutex);
 }
 
-void update_part_display() {
+void sh1106_update_part_display() {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         if (!((page_change & (0x01 << page)) > 0x00))
@@ -177,21 +191,23 @@ void update_part_display() {
     xSemaphoreGive(i2c_mutex);
 }
 
-void clear_frame() {
-    memset(frame_buf, 0x00, sizeof(frame_buf));
-    memset(frame_change, 0x00, sizeof(frame_change));
-    frame_change_amt = 0;
-    page_change = 0x00;
-    frame_cleared = true;
+void sh1106_update_display() {
+    while (1) {
+        xSemaphoreTake(frame_mutex, portMAX_DELAY);
+        if (frame_cleared || frame_change_amt > 32) {
+            sh1106_update_full_display();
+            frame_cleared = false;
+        } else {
+            sh1106_update_part_display();
+        }
+        sh1106_clear_frame_changes();
+        xSemaphoreGive(frame_mutex);
+        xSemaphoreGive(display_update_sem);
+        vTaskDelay(33 / portTICK_PERIOD_MS);
+    }
 }
 
-void clear_frame_changes() {
-    memset(frame_change, 0x00, sizeof(frame_change));
-    frame_change_amt = 0;
-    page_change = 0x00;
-}
-
-void draw_pixel(uint8_t x, uint8_t y, bool on) {
+void sh1106_draw_pixel(uint8_t x, uint8_t y, bool on) {
     if (x >= 128 || y >= 64) {
         return;
     }
@@ -222,26 +238,10 @@ void draw_pixel(uint8_t x, uint8_t y, bool on) {
     }
 } 
 
-void draw_bitmap(uint8_t *bitmap, uint8_t x_size, uint8_t y_size, Coordinate_t pos) {
+void sh1106_draw_bitmap(uint8_t *bitmap, uint8_t x_size, uint8_t y_size, Coordinate_t pos) {
     for (uint8_t y = 0; y < y_size; y++) {
         for (uint8_t x = 0; x < x_size; x++) {
-            draw_pixel(x + pos.x, y + pos.y, bitmap[y * x_size + x]);
+            sh1106_draw_pixel(x + pos.x, y + pos.y, bitmap[y * x_size + x]);
         }
-    }
-}
-
-void update_display() {
-    while (1) {
-        xSemaphoreTake(frame_mutex, portMAX_DELAY);
-        if (frame_cleared || frame_change_amt > 32) {
-            update_full_display();
-            frame_cleared = false;
-        } else {
-            update_part_display();
-        }
-        clear_frame_changes();
-        xSemaphoreGive(frame_mutex);
-        xSemaphoreGive(display_update_sem);
-        vTaskDelay(33 / portTICK_PERIOD_MS);
     }
 }
