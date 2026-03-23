@@ -279,21 +279,21 @@ void draw_sine_wave(void *arg) {
 void draw_box(void *arg) {
     int x = 0;
     int y = 0;
+    uint8_t box_bitmap[] = {
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 0, 0, 0, 0, 1, 1,
+        1, 0, 1, 0, 0, 1, 0, 1,
+        1, 0, 0, 1, 1, 0, 0, 1,
+        1, 0, 0, 1, 1, 0, 0, 1,
+        1, 0, 1, 0, 0, 1, 0, 1,
+        1, 1, 0, 0, 0, 0, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+    };
+    uint8_t x_size = 8;
+    uint8_t y_size = 8;
+    Coordinate_t pos = { .x = x, .y = y };
     while (1) {
         xSemaphoreTake(display_update_sem, portMAX_DELAY);
-        uint8_t box_bitmap[] = {
-            1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 0, 0, 0, 0, 1, 1,
-            1, 0, 1, 0, 0, 1, 0, 1,
-            1, 0, 0, 1, 1, 0, 0, 1,
-            1, 0, 0, 1, 1, 0, 0, 1,
-            1, 0, 1, 0, 0, 1, 0, 1,
-            1, 1, 0, 0, 0, 0, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1,
-        };
-        uint8_t x_size = 8;
-        uint8_t y_size = 8;
-        Coordinate_t pos = { .x = x, .y = y };
 
         xSemaphoreTake(frame_mutex, portMAX_DELAY);
         clear_frame();
@@ -336,8 +336,9 @@ void app_main(void) {
 
     display_update_sem = xSemaphoreCreateBinary();
 
+    // Simple test patterns
     xTaskCreate(update_display, "sh1106 update", 2048, NULL, 5, NULL);
     // xTaskCreate(draw_sine_wave, "sine wave", 2048, NULL, 5, NULL);
     // xTaskCreate(draw_box, "draw box", 2048, NULL, 4, NULL);
-    xTaskCreate(fill_display, "fill display", 2048, NULL, 4, NULL);
+    // xTaskCreate(fill_display, "fill display", 2048, NULL, 4, NULL);
 }
