@@ -293,7 +293,7 @@ void draw_box(void *arg) {
     uint8_t y_size = 8;
     while (1) {
         xSemaphoreTake(display_update_sem, portMAX_DELAY);
-    Coordinate_t pos = { .x = x, .y = y };
+        Coordinate_t pos = { .x = x, .y = y };
 
         xSemaphoreTake(frame_mutex, portMAX_DELAY);
         clear_frame();
