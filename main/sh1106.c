@@ -119,22 +119,22 @@ void init_sh1106() {
 }
 
 void update_full_display() {
-        xSemaphoreTake(i2c_mutex, portMAX_DELAY);
-        for (uint8_t page = 0; page < 8; page++) {
-            uint8_t pos_cmd_buf[] = {
-                0x00,
-                sh1106_set_page(page),
-                sh1106_set_upper_column(2),
-                sh1106_set_lower_column(2),
-            };
-            i2c_master_transmit(sh1106_handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
+    xSemaphoreTake(i2c_mutex, portMAX_DELAY);
+    for (uint8_t page = 0; page < 8; page++) {
+        uint8_t pos_cmd_buf[] = {
+            0x00,
+            sh1106_set_page(page),
+            sh1106_set_upper_column(2),
+            sh1106_set_lower_column(2),
+        };
+        i2c_master_transmit(sh1106_handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
 
-            uint8_t data_buf[129];
-            data_buf[0] = 0x40;
-            memcpy(data_buf + sizeof(*data_buf), frame_buf + page * 128 * sizeof(*frame_buf), 128);
-            i2c_master_transmit(sh1106_handle, data_buf, 129, 500);
-        }
-        xSemaphoreGive(i2c_mutex);
+        uint8_t data_buf[129];
+        data_buf[0] = 0x40;
+        memcpy(data_buf + sizeof(*data_buf), frame_buf + page * 128 * sizeof(*frame_buf), 128);
+        i2c_master_transmit(sh1106_handle, data_buf, 129, 500);
+    }
+    xSemaphoreGive(i2c_mutex);
 }
 
 void update_part_display() {
@@ -291,9 +291,9 @@ void draw_box(void *arg) {
     };
     uint8_t x_size = 8;
     uint8_t y_size = 8;
-    Coordinate_t pos = { .x = x, .y = y };
     while (1) {
         xSemaphoreTake(display_update_sem, portMAX_DELAY);
+    Coordinate_t pos = { .x = x, .y = y };
 
         xSemaphoreTake(frame_mutex, portMAX_DELAY);
         clear_frame();
