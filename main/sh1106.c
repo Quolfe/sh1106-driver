@@ -1,8 +1,6 @@
 #include <freertos/FreeRTOS.h>
 #include <driver/i2c_master.h>
-#include <math.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 void clear_frame();
@@ -19,6 +17,11 @@ int frame_change_amt = 0;
 SemaphoreHandle_t frame_mutex;
 uint8_t page_change = 0x00;
 bool frame_cleared = false;
+
+typedef struct {
+    uint8_t x;
+    uint8_t y;
+} Coordinate_t;
 
 static inline uint8_t sh1106_set_page(uint8_t page) {
     return 0xB0 | page;
@@ -47,14 +50,12 @@ void init_i2c() {
     };
 
     ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_master_config, &i2c_master_bus_handle));
-    printf("Initialized I2C master bus!\n");
 
     i2c_mutex = xSemaphoreCreateMutex();
 }
 
 void init_sh1106() {
     ESP_ERROR_CHECK(i2c_master_probe(i2c_master_bus_handle, 0x3C, 500));
-    printf("Found SH1106 display at address 0x3C!\n");
 
     i2c_device_config_t sh1106_config = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
@@ -114,8 +115,6 @@ void init_sh1106() {
 
     clear_frame();
     frame_mutex = xSemaphoreCreateMutex();
-
-    printf("Initialized SH1106 device!\n");
 }
 
 void update_full_display() {
@@ -223,12 +222,7 @@ void draw_pixel(uint8_t x, uint8_t y, bool on) {
     }
 } 
 
-typedef struct {
-    uint8_t x;
-    uint8_t y;
-} Coordinate_t;
-
-void draw_img(uint8_t *bitmap, uint8_t x_size, uint8_t y_size, Coordinate_t pos) {
+void draw_bitmap(uint8_t *bitmap, uint8_t x_size, uint8_t y_size, Coordinate_t pos) {
     for (uint8_t y = 0; y < y_size; y++) {
         for (uint8_t x = 0; x < x_size; x++) {
             draw_pixel(x + pos.x, y + pos.y, bitmap[y * x_size + x]);
@@ -236,7 +230,7 @@ void draw_img(uint8_t *bitmap, uint8_t x_size, uint8_t y_size, Coordinate_t pos)
     }
 }
 
-void update_display(void *arg) {
+void update_display() {
     while (1) {
         xSemaphoreTake(frame_mutex, portMAX_DELAY);
         if (frame_cleared || frame_change_amt > 32) {
@@ -250,95 +244,4 @@ void update_display(void *arg) {
         xSemaphoreGive(display_update_sem);
         vTaskDelay(33 / portTICK_PERIOD_MS);
     }
-}
-
-void draw_sine_wave(void *arg) {
-    double x = -64;
-    int x_offset = 64;
-    int y_offset = 32;
-    bool on = true;
-    while (1) {
-        xSemaphoreTake(display_update_sem, portMAX_DELAY);
-        xSemaphoreTake(frame_mutex, portMAX_DELAY);
-        for (int i = 0; i < 8; i++) {
-            uint8_t y = (uint8_t) round(sin(x / 4) * 10);
-            if (y + y_offset < 0) {
-                continue;
-            }
-            draw_pixel((uint8_t)round(x + x_offset), y + y_offset, on);
-            x += 0.25;
-            if (round(x + x_offset) >= 128) {
-                x = -x_offset;
-                on ^= true;
-            }
-        }
-        xSemaphoreGive(frame_mutex);
-    }
-}
-
-void draw_box(void *arg) {
-    int x = 0;
-    int y = 0;
-    uint8_t box_bitmap[] = {
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 0, 0, 0, 0, 1, 1,
-        1, 0, 1, 0, 0, 1, 0, 1,
-        1, 0, 0, 1, 1, 0, 0, 1,
-        1, 0, 0, 1, 1, 0, 0, 1,
-        1, 0, 1, 0, 0, 1, 0, 1,
-        1, 1, 0, 0, 0, 0, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-    };
-    uint8_t x_size = 8;
-    uint8_t y_size = 8;
-    while (1) {
-        xSemaphoreTake(display_update_sem, portMAX_DELAY);
-        Coordinate_t pos = { .x = x, .y = y };
-
-        xSemaphoreTake(frame_mutex, portMAX_DELAY);
-        clear_frame();
-        draw_img(box_bitmap, x_size, y_size, pos);
-        xSemaphoreGive(frame_mutex);
-        x += 2;
-        if (x + x_size  >= 128) {
-            x = 0;
-            y += y_size;
-        }
-        if (y + y_size >= 64) {
-            y = 0;
-        }
-    }
-}
-
-void fill_display(void *arg) {
-    uint8_t i = 2;
-    bool on = true;
-    while (1) {
-        xSemaphoreTake(display_update_sem, portMAX_DELAY);
-        xSemaphoreTake(frame_mutex, portMAX_DELAY);
-        for (uint8_t x = 0; x < i && x < 128; x++) {
-            for (uint8_t y = 0; x + y < i && y < 64; y++) {
-                draw_pixel(x, y, on);
-                if (x >= 127 && y >= 63) {
-                    on ^= true;
-                    i = 2;
-                }
-            }
-        }
-        xSemaphoreGive(frame_mutex);
-        i++;
-    }
-}
-
-void app_main(void) {
-    init_i2c();
-    init_sh1106();
-
-    display_update_sem = xSemaphoreCreateBinary();
-
-    // Simple test patterns
-    xTaskCreate(update_display, "sh1106 update", 2048, NULL, 5, NULL);
-    // xTaskCreate(draw_sine_wave, "sine wave", 2048, NULL, 5, NULL);
-    // xTaskCreate(draw_box, "draw box", 2048, NULL, 4, NULL);
-    // xTaskCreate(fill_display, "fill display", 2048, NULL, 4, NULL);
 }
