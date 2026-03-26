@@ -1,3 +1,4 @@
+#include "include/sh1106.h"
 #include <freertos/FreeRTOS.h>
 #include <driver/i2c_master.h>
 #include <stdint.h>
@@ -6,12 +7,7 @@
 i2c_master_bus_handle_t i2c_master_bus_handle;
 SemaphoreHandle_t i2c_mutex;
 
-typedef struct {
-    uint8_t device_address;
-    uint32_t scl_speed_hz;
-} SH1106_config_t;
-
-typedef struct {
+struct sh1106_t {
     i2c_master_dev_handle_t handle;
     uint8_t frame_buf[128 * 64 / 8];
     uint8_t frame_change[128];
@@ -19,7 +15,7 @@ typedef struct {
     SemaphoreHandle_t frame_mutex;
     uint8_t page_change;
     bool frame_cleared;
-} SH1106_t;
+};
 
 typedef struct {
     uint8_t x_size;
@@ -28,8 +24,6 @@ typedef struct {
     uint8_t y;
     uint8_t data[];
 } Bitmap_t;
-
-void sh1106_clear_frame(SH1106_t *display);
 
 static inline uint8_t sh1106_set_page(uint8_t page) {
     return 0xB0 | page;
@@ -62,15 +56,15 @@ void init_i2c() {
     i2c_mutex = xSemaphoreCreateMutex();
 }
 
-SH1106_config_t sh1106_default_config() {
-    SH1106_config_t config = {
+sh1106_config_t sh1106_default_config() {
+    sh1106_config_t config = {
         .device_address = 0x3C,
         .scl_speed_hz = 400000,
     };
     return config;
 }
 
-esp_err_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle, SH1106_t *display) {
+esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, sh1106_t *display) {
     esp_err_t err;
     err = i2c_master_probe(i2c_handle, 0x3C, 500);
     if (err != ESP_OK) {
@@ -97,7 +91,7 @@ esp_err_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
     display->page_change = 0x00;
     display->frame_cleared = false;
 
-    // SH1106 initialization
+    // sh1106 initialization
     uint8_t init_cmd_buf[] = {
         0x00,
         0xAE,
@@ -148,7 +142,7 @@ esp_err_t sh1106_init(SH1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
     sh1106_clear_frame(display);
 }
 
-void sh1106_clear_frame(SH1106_t *display) {
+void sh1106_clear_frame(sh1106_t *display) {
     memset(display->frame_buf, 0x00, sizeof(display->frame_buf));
     memset(display->frame_change, 0x00, sizeof(display->frame_change));
     display->frame_change_amt = 0;
@@ -156,13 +150,13 @@ void sh1106_clear_frame(SH1106_t *display) {
     display->frame_cleared = true;
 }
 
-void sh1106_clear_frame_changes(SH1106_t *display) {
+void sh1106_clear_frame_changes(sh1106_t *display) {
     memset(display->frame_change, 0x00, sizeof(display->frame_change));
     display->frame_change_amt = 0;
     display->page_change = 0x00;
 }
 
-void sh1106_update_full_display(SH1106_t *display) {
+void sh1106_update_full_display(sh1106_t *display) {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t pos_cmd_buf[] = {
@@ -181,7 +175,7 @@ void sh1106_update_full_display(SH1106_t *display) {
     xSemaphoreGive(i2c_mutex);
 }
 
-void sh1106_update_part_display(SH1106_t *display) {
+void sh1106_update_part_display(sh1106_t *display) {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         if (!((display->page_change & (0x01 << page)) > 0x00))
@@ -222,7 +216,7 @@ void sh1106_update_part_display(SH1106_t *display) {
     xSemaphoreGive(i2c_mutex);
 }
 
-void sh1106_update_display(SH1106_t *display) {
+void sh1106_update_display(sh1106_t *display) {
     while (1) {
         xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
         if (display->frame_cleared || display->frame_change_amt > 32) {
@@ -236,7 +230,7 @@ void sh1106_update_display(SH1106_t *display) {
     }
 }
 
-void sh1106_draw_pixel(SH1106_t *display, uint8_t x, uint8_t y, bool on) {
+void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
     if (x >= 128 || y >= 64) {
         return;
     }
@@ -267,7 +261,7 @@ void sh1106_draw_pixel(SH1106_t *display, uint8_t x, uint8_t y, bool on) {
     }
 } 
 
-void sh1106_draw_bitmap(SH1106_t *display, Bitmap_t bitmap) {
+void sh1106_draw_bitmap(sh1106_t *display, Bitmap_t bitmap) {
     for (uint8_t y = 0; y < bitmap.y_size; y++) {
         for (uint8_t x = 0; x < bitmap.x_size; x++) {
             sh1106_draw_pixel(display, x + bitmap.x, y + bitmap.y, bitmap.data[y * bitmap.x_size + x]);
