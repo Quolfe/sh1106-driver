@@ -1,11 +1,9 @@
 #include "include/sh1106.h"
+#include "freertos/idf_additions.h"
 #include <freertos/FreeRTOS.h>
 #include <driver/i2c_master.h>
 #include <stdint.h>
 #include <string.h>
-
-i2c_master_bus_handle_t i2c_master_bus_handle;
-SemaphoreHandle_t i2c_mutex;
 
 struct sh1106_t {
     i2c_master_dev_handle_t handle;
@@ -16,14 +14,6 @@ struct sh1106_t {
     uint8_t page_change;
     bool frame_cleared;
 };
-
-typedef struct {
-    uint8_t x_size;
-    uint8_t y_size;
-    uint8_t x;
-    uint8_t y;
-    uint8_t data[];
-} Bitmap_t;
 
 static inline uint8_t sh1106_set_page(uint8_t page) {
     return 0xB0 | page;
@@ -41,22 +31,7 @@ static inline bool bit_check(uint8_t val, uint8_t pos) {
     return (val & (1 << pos)) > 0x00;
 }
 
-void init_i2c() {
-    i2c_master_bus_config_t i2c_master_config = {
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .i2c_port = I2C_NUM_0,
-        .scl_io_num = 22,
-        .sda_io_num = 23,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
-    };
-
-    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_master_config, &i2c_master_bus_handle));
-
-    i2c_mutex = xSemaphoreCreateMutex();
-}
-
-sh1106_config_t sh1106_default_config() {
+sh1106_config_t sh1106_default_config(void) {
     sh1106_config_t config = {
         .device_address = 0x3C,
         .scl_speed_hz = 400000,
@@ -140,6 +115,8 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
     }
 
     sh1106_clear_frame(display);
+
+    return ESP_OK;
 }
 
 void sh1106_clear_frame(sh1106_t *display) {
@@ -156,7 +133,7 @@ void sh1106_clear_frame_changes(sh1106_t *display) {
     display->page_change = 0x00;
 }
 
-void sh1106_update_full_display(sh1106_t *display) {
+void sh1106_update_full_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t pos_cmd_buf[] = {
@@ -175,7 +152,7 @@ void sh1106_update_full_display(sh1106_t *display) {
     xSemaphoreGive(i2c_mutex);
 }
 
-void sh1106_update_part_display(sh1106_t *display) {
+void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         if (!((display->page_change & (0x01 << page)) > 0x00))
@@ -216,18 +193,16 @@ void sh1106_update_part_display(sh1106_t *display) {
     xSemaphoreGive(i2c_mutex);
 }
 
-void sh1106_update_display(sh1106_t *display) {
-    while (1) {
-        xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
-        if (display->frame_cleared || display->frame_change_amt > 32) {
-            sh1106_update_full_display(display);
-            display->frame_cleared = false;
-        } else {
-            sh1106_update_part_display(display);
-        }
-        sh1106_clear_frame_changes(display);
-        xSemaphoreGive(display->frame_mutex);
+void sh1106_update_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
+    xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
+    if (display->frame_cleared || display->frame_change_amt > 32) {
+        sh1106_update_full_display(display, i2c_mutex);
+        display->frame_cleared = false;
+    } else {
+        sh1106_update_part_display(display, i2c_mutex);
     }
+    sh1106_clear_frame_changes(display);
+    xSemaphoreGive(display->frame_mutex);
 }
 
 void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
@@ -261,7 +236,7 @@ void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
     }
 } 
 
-void sh1106_draw_bitmap(sh1106_t *display, Bitmap_t bitmap) {
+void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap) {
     for (uint8_t y = 0; y < bitmap.y_size; y++) {
         for (uint8_t x = 0; x < bitmap.x_size; x++) {
             sh1106_draw_pixel(display, x + bitmap.x, y + bitmap.y, bitmap.data[y * bitmap.x_size + x]);
