@@ -13,7 +13,7 @@ struct sh1106_t {
     uint8_t frame_change_amt;
     SemaphoreHandle_t frame_mutex;
     uint8_t page_change;
-    bool frame_cleared;
+    bool force_update;
 };
 
 static inline uint8_t sh1106_set_page(uint8_t page) {
@@ -82,7 +82,7 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
     display->frame_change_amt = 0;
     display->frame_mutex = xSemaphoreCreateMutex();
     display->page_change = 0x00;
-    display->frame_cleared = false;
+    display->force_update = false;
 
     // sh1106 initialization
     uint8_t init_cmd_buf[] = {
@@ -142,7 +142,7 @@ void sh1106_clear_frame(sh1106_t *display) {
     memset(display->frame_change, 0x00, sizeof(display->frame_change));
     display->frame_change_amt = 0;
     display->page_change = 0x00;
-    display->frame_cleared = true;
+    display->force_update = true;
 }
 
 void sh1106_clear_frame_changes(sh1106_t *display) {
@@ -213,9 +213,9 @@ void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) 
 
 void sh1106_update_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
     xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
-    if (display->frame_cleared || display->frame_change_amt > 32) {
+    if (display->force_update || display->frame_change_amt > 32) {
         sh1106_update_full_display(display, i2c_mutex);
-        display->frame_cleared = false;
+        display->force_update = false;
     } else {
         sh1106_update_part_display(display, i2c_mutex);
     }
@@ -227,6 +227,7 @@ void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
     if (x >= 128 || y >= 64) {
         return;
     }
+    xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
     bool change_needed;
     if (on) {
         if (bit_check(display->frame_buf[y / 8 * 128 + x], y % 8)) {
@@ -244,6 +245,7 @@ void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
         }
     }
     if (!change_needed) {
+        xSemaphoreGive(display->frame_mutex);
         return;
     }
     bool change_set = bit_check(display->frame_change[y / 8 * 16 + x / 8], x % 8);
@@ -252,6 +254,7 @@ void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
         display->page_change |= 0x01 << (y / 8);
         display->frame_change_amt++;
     }
+    xSemaphoreGive(display->frame_mutex);
 } 
 
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap) {
