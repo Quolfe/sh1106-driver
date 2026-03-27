@@ -1,5 +1,6 @@
 #include "include/sh1106.h"
 #include "freertos/idf_additions.h"
+#include "portmacro.h"
 #include <freertos/FreeRTOS.h>
 #include <driver/i2c_master.h>
 #include <stdint.h>
@@ -38,6 +39,14 @@ sh1106_t *sh1106_new(void) {
 
 void sh1106_free(sh1106_t *display) {
     free(display);
+}
+
+void sh1106_take_mutex(sh1106_t *display, TickType_t max_delay) {
+    xSemaphoreTake(display->frame_mutex, max_delay);
+}
+
+void sh1106_give_mutex(sh1106_t *display) {
+    xSemaphoreGive(display->frame_mutex);
 }
 
 sh1106_config_t sh1106_default_config(void) {
