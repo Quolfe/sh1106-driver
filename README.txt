@@ -1,2 +1,2 @@
-Hello there!
-This is my SH1106 driver using ESP-IDF.
+# Introduction 
+Hello there! This is a driver for OLED displays using the SH1106 IC.
