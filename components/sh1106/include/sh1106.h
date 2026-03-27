@@ -22,6 +22,9 @@ typedef struct {
     uint8_t *data;
 } bitmap_t;
 
+sh1106_t *sh1106_new(void);
+void sh1106_free(sh1106_t *display);
+
 sh1106_config_t sh1106_default_config(void);
 esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, sh1106_t *display);
 

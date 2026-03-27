@@ -31,6 +31,15 @@ static inline bool bit_check(uint8_t val, uint8_t pos) {
     return (val & (1 << pos)) > 0x00;
 }
 
+sh1106_t *sh1106_new(void) {
+    sh1106_t *ptr = (sh1106_t*) malloc(sizeof(sh1106_t));
+    return ptr;
+}
+
+void sh1106_free(sh1106_t *display) {
+    free(display);
+}
+
 sh1106_config_t sh1106_default_config(void) {
     sh1106_config_t config = {
         .device_address = 0x3C,
