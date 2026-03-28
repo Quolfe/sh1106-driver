@@ -10,6 +10,23 @@
 typedef struct {
     uint8_t device_address;
     uint32_t scl_speed_hz;
+    uint8_t pump_voltage;
+    uint8_t start_line;
+    uint8_t contrast;
+    bool segment_reverse;
+    bool all_pixels_on;
+    bool flip_pixels;
+    uint8_t muliplex_ratio;
+    bool dc_converter;
+    bool display_on;
+    bool vertical_flip;
+    uint8_t offset;
+    uint8_t clock_ratio;
+    uint8_t clock_frequency;
+    uint8_t precharge_period;
+    uint8_t discharge_period;
+    bool alt_pad_config;
+    uint8_t vcom_deselect_voltage;
 } sh1106_config_t;
 
 typedef struct sh1106_t sh1106_t;

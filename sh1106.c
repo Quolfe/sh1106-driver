@@ -16,24 +16,29 @@ struct sh1106_t {
     bool force_update;
 };
 
-static inline uint8_t sh1106_set_page(uint8_t page) {
-    return 0xB0 | page;
-}
+static inline uint8_t sh1106_set_page(uint8_t page)                           { return 0xB0 | page; }
+static inline uint8_t sh1106_set_lower_column(uint8_t column)                 { return 0x00 | (column & 0x0F); }
+static inline uint8_t sh1106_set_upper_column(uint8_t column)                 { return 0x10 | (column >> 4); }
+static inline uint8_t sh1106_set_pump_voltage(uint8_t val)                    { return 0x30 | val; }
+static inline uint8_t sh1106_set_start_line(uint8_t val)                      { return 0x40 | val; }
+static inline uint8_t sh1106_set_contrast(uint8_t contrast)                   { return contrast; }
+static inline uint8_t sh1106_set_segment_remap(bool reverse)                  { return reverse ? 0xA1 : 0xA0; }
+static inline uint8_t sh1106_set_all_pixels_on(bool on)                       { return on ? 0xA5 : 0xA4; }
+static inline uint8_t sh1106_set_flip_pixels(bool reverse)                 { return reverse ? 0xA5 : 0xA4; }
+static inline uint8_t sh1106_set_multiplex_ratio(uint8_t val)                 { return 0x3F & val; }
+static inline uint8_t sh1106_set_dc_converter(bool on)                        { return on ? 0x8B : 0x8A; }
+static inline uint8_t sh1106_set_display_on(bool on)                          { return on ? 0xAF : 0xAE; }
+static inline uint8_t sh1106_set_vertical_flip(bool flip)                     { return flip ? 0xC0 : 0xC8; }
+static inline uint8_t sh1106_set_display_offset(uint8_t offset)               { return 0x3F | offset; }
+static inline uint8_t sh1106_set_clock(uint8_t ratio, uint8_t frequency)      { return (frequency << 4) | (0x0F & (ratio - 1)); }
+static inline uint8_t sh1106_set_charge_periods(uint8_t discharge, uint8_t precharge) { return (discharge << 4) | (0x0F & precharge); }
+static inline uint8_t sh1106_set_pads(bool alternative)                       { return alternative ? 0x12 : 0x02; }
+static inline uint8_t sh1106_set_vcom_deselect(uint8_t val)                   { return val; }
 
-static inline uint8_t sh1106_set_lower_column(uint8_t column) {
-    return 0x00 | (column & 0x0F);
-}
-
-static inline uint8_t sh1106_set_upper_column(uint8_t column) {
-    return 0x10 | (column >> 4);
-}
-
-static inline bool bit_check(uint8_t val, uint8_t pos) {
-    return (val & (1 << pos)) > 0x00;
-}
+static inline bool bit_check(uint8_t val, uint8_t pos) { return (val & (1 << pos)) > 0x00; }
 
 sh1106_t *sh1106_new(void) {
-    sh1106_t *ptr = (sh1106_t*) malloc(sizeof(sh1106_t));
+    sh1106_t *ptr = malloc(sizeof(sh1106_t));
     return ptr;
 }
 
@@ -53,6 +58,22 @@ sh1106_config_t sh1106_default_config(void) {
     sh1106_config_t config = {
         .device_address = 0x3C,
         .scl_speed_hz = 400000,
+        .pump_voltage = 2,
+        .start_line = 0,
+        .contrast = 128, // 127?
+        .segment_reverse = false, // true?
+        .all_pixels_on = false,
+        .flip_pixels = false,
+        .muliplex_ratio = 0x64,
+        .dc_converter = true,
+        .vertical_flip = false,
+        .offset = 0,
+        .clock_ratio = 0,
+        .clock_frequency = 8,
+        .precharge_period = 2,
+        .discharge_period = 2,
+        .alt_pad_config = true,
+        .vcom_deselect_voltage = 0x20,
     };
     return config;
 }
@@ -86,30 +107,31 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
 
     // sh1106 initialization
     uint8_t init_cmd_buf[] = {
-        0x00,
-        0xAE,
-        0xD5,
-        0x80,
-        0xA8,
-        0x3F,
-        0xD3,
-        0x00,
-        0x40,
-        0xAD,
-        0x8B,
-        0xA1,
-        0xC8,
-        0xDA,
-        0x12,
-        0x81,
-        0x7F,
-        0xD9,
-        0x22,
-        0xDB,
-        0x20,
-        0xA4,
-        0xA6,
-        0xAF,
+        0x00, // Command byte
+        sh1106_set_display_on(false), // 11
+        sh1106_set_pump_voltage(conf.pump_voltage), // 3
+        sh1106_set_start_line(conf.start_line), // 4
+        0x81, // 5 mode
+        sh1106_set_contrast(conf.contrast), // 5 val
+        sh1106_set_segment_remap(conf.segment_reverse), // 6
+        sh1106_set_all_pixels_on(conf.all_pixels_on), // 7
+        sh1106_set_flip_pixels(conf.flip_pixels), // 8
+        0xA8, // 9 mode
+        sh1106_set_multiplex_ratio(conf.muliplex_ratio), // 9 val
+        0xAD, // 10 mode
+        sh1106_set_dc_converter(conf.dc_converter), // 10 val
+        sh1106_set_vertical_flip(conf.vertical_flip), // 13
+        0xD3, // 14 mode
+        sh1106_set_display_offset(conf.offset), // 14 val
+        0xD5, // 15 mode
+        sh1106_set_clock(conf.clock_ratio, conf.clock_frequency), // 15 val
+        0xD9, // 16 mode
+        sh1106_set_charge_periods(conf.discharge_period, conf.precharge_period), // 16 val
+        0xDA, // 17 mode
+        sh1106_set_pads(conf.alt_pad_config), // 17 val
+        0xDB, // 18 mode
+        sh1106_set_vcom_deselect(conf.vcom_deselect_voltage), // 18 val
+        sh1106_set_display_on(true), // 11
     };
 
     i2c_master_transmit(display->handle, init_cmd_buf, sizeof(init_cmd_buf), 1000);
