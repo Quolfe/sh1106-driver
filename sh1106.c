@@ -68,7 +68,7 @@ sh1106_config_t sh1106_default_config(void) {
         .dc_converter = true,
         .vertical_flip = false,
         .offset = 0,
-        .clock_ratio = 0,
+        .clock_ratio = 1,
         .clock_frequency = 8,
         .precharge_period = 2,
         .discharge_period = 2,
