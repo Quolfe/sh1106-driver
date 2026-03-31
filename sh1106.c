@@ -60,12 +60,13 @@ sh1106_config_t sh1106_default_config(void) {
         .scl_speed_hz = 400000,
         .pump_voltage = 2,
         .start_line = 0,
-        .contrast = 128, // 127?
-        .segment_reverse = false, // true?
+        .contrast = 128,
+        .segment_reverse = true,
         .all_pixels_on = false,
         .flip_pixels = false,
         .muliplex_ratio = 64,
         .dc_converter = true,
+        .display_on = true,
         .vertical_flip = false,
         .offset = 0,
         .clock_ratio = 1,
