@@ -24,12 +24,12 @@ static inline uint8_t sh1106_set_start_line(uint8_t val)                      { 
 static inline uint8_t sh1106_set_contrast(uint8_t contrast)                   { return contrast; }
 static inline uint8_t sh1106_set_segment_remap(bool reverse)                  { return reverse ? 0xA1 : 0xA0; }
 static inline uint8_t sh1106_set_all_pixels_on(bool on)                       { return on ? 0xA5 : 0xA4; }
-static inline uint8_t sh1106_set_flip_pixels(bool reverse)                    { return reverse ? 0xA5 : 0xA4; }
-static inline uint8_t sh1106_set_multiplex_ratio(uint8_t val)                 { return 0x3F & val; }
+static inline uint8_t sh1106_set_flip_pixels(bool reverse)                    { return reverse ? 0xA7 : 0xA6; }
+static inline uint8_t sh1106_set_multiplex_ratio(uint8_t val)                 { return 0x3F & (val - 1); }
 static inline uint8_t sh1106_set_dc_converter(bool on)                        { return on ? 0x8B : 0x8A; }
 static inline uint8_t sh1106_set_display_on(bool on)                          { return on ? 0xAF : 0xAE; }
 static inline uint8_t sh1106_set_vertical_flip(bool flip)                     { return flip ? 0xC0 : 0xC8; }
-static inline uint8_t sh1106_set_display_offset(uint8_t offset)               { return 0x3F | offset; }
+static inline uint8_t sh1106_set_display_offset(uint8_t offset)               { return 0x3F & offset; }
 static inline uint8_t sh1106_set_clock(uint8_t ratio, uint8_t frequency)      { return (frequency << 4) | (0x0F & (ratio - 1)); }
 static inline uint8_t sh1106_set_charge_periods(uint8_t discharge, uint8_t precharge) { return (discharge << 4) | (0x0F & precharge); }
 static inline uint8_t sh1106_set_pads(bool alternative)                       { return alternative ? 0x12 : 0x02; }
@@ -64,7 +64,7 @@ sh1106_config_t sh1106_default_config(void) {
         .segment_reverse = false, // true?
         .all_pixels_on = false,
         .flip_pixels = false,
-        .muliplex_ratio = 0x64,
+        .muliplex_ratio = 64,
         .dc_converter = true,
         .vertical_flip = false,
         .offset = 0,
@@ -149,7 +149,7 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
 
         uint8_t clear_buf[133];
         clear_buf[0] = 0x40;
-        memset(clear_buf + sizeof(*clear_buf), 0x00, 132);
+        memset(clear_buf + 1, 0x00, 132);
 
         i2c_master_transmit(display->handle, clear_buf, 133, 500);
     }
