@@ -134,6 +134,34 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
         sh1106_set_display_on(conf.display_on), // 11
     };
 
+    // Basic initialization command for debugging:
+    // uint8_t init_cmd_buf[] = {
+        // 0x00, // command byte
+        // 0xAE, // 11 (Display off)
+        // 0xD5, // 15 mode (Clock)
+        // 0x80, // 15 val (oscillator frequency = 8 (15%))(divide ratio = 0 (1))
+        // 0xA8, // 9 mode (Multiplex ratio)
+        // 0x3F, // 9 val (64)
+        // 0xD3, // 14 mode (Display offset)
+        // 0x00, // 14 val (0)
+        // 0x40, // 4 (Start line)
+        // 0xAD, // 10 mode (DC-DC)
+        // 0x8B, // 10 val (on)
+        // 0xA1, // 6 (Segment remap)
+        // 0xC8, // 13 (Common scan direction)
+        // 0xDA, // 17 mode (Pads config)
+        // 0x12, // 17 val (Alternative)
+        // 0x81, // 5 mode (Contrast)
+        // 0x7F, // 5 val (127)
+        // 0xD9, // 16 mode (Discharge/Precharge period)
+        // 0x22, // 16 val (Precharge = 2, Discharge = 2)
+        // 0xDB, // 18 mode (VCOM deselect level)
+        // 0x20, // 18 val (0x20 = 0.770)
+        // 0xA4, // 7 (Entire display on)
+        // 0xA6, // 8 (Set normal display)
+        // 0xAF, // 11 (Display on)
+    // };
+
     i2c_master_transmit(display->handle, init_cmd_buf, sizeof(init_cmd_buf), 1000);
 
     // Clear display
