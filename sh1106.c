@@ -24,7 +24,7 @@ static inline uint8_t sh1106_set_start_line(uint8_t val)                      { 
 static inline uint8_t sh1106_set_contrast(uint8_t contrast)                   { return contrast; }
 static inline uint8_t sh1106_set_segment_remap(bool reverse)                  { return reverse ? 0xA1 : 0xA0; }
 static inline uint8_t sh1106_set_all_pixels_on(bool on)                       { return on ? 0xA5 : 0xA4; }
-static inline uint8_t sh1106_set_flip_pixels(bool reverse)                 { return reverse ? 0xA5 : 0xA4; }
+static inline uint8_t sh1106_set_flip_pixels(bool reverse)                    { return reverse ? 0xA5 : 0xA4; }
 static inline uint8_t sh1106_set_multiplex_ratio(uint8_t val)                 { return 0x3F & val; }
 static inline uint8_t sh1106_set_dc_converter(bool on)                        { return on ? 0x8B : 0x8A; }
 static inline uint8_t sh1106_set_display_on(bool on)                          { return on ? 0xAF : 0xAE; }
