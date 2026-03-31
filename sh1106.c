@@ -131,7 +131,7 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
         sh1106_set_pads(conf.alt_pad_config), // 17 val
         0xDB, // 18 mode
         sh1106_set_vcom_deselect(conf.vcom_deselect_voltage), // 18 val
-        sh1106_set_display_on(true), // 11
+        sh1106_set_display_on(conf.display_on), // 11
     };
 
     i2c_master_transmit(display->handle, init_cmd_buf, sizeof(init_cmd_buf), 1000);
