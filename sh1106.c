@@ -6,6 +6,28 @@
 #include <stdint.h>
 #include <string.h>
 
+typedef struct {
+    bool device_address;
+    bool scl_speed_hz;
+    bool pump_voltage;
+    bool start_line;
+    bool contrast;
+    bool segment_remap;
+    bool all_pixels_on;
+    bool flip_pixels;
+    bool multiplex_ratio;
+    bool dc_converter;
+    bool display_on;
+    bool vertical_flip;
+    bool offset;
+    bool clock_ratio;
+    bool clock_frequency;
+    bool precharge_period;
+    bool discharge_period;
+    bool pad_config;
+    bool vcom_deselect_voltage;
+} sh1106_config_updates_t;
+
 struct sh1106_t {
     i2c_master_dev_handle_t handle;
     uint8_t frame_buf[128 * 64 / 8];
@@ -15,26 +37,45 @@ struct sh1106_t {
     uint8_t page_change;
     bool force_update;
     sh1106_config_t config;
+    sh1106_config_updates_t config_updates;
 };
 
-static inline uint8_t sh1106_set_page_byte(uint8_t page)                           { return 0xB0 | page; }
-static inline uint8_t sh1106_set_lower_column_byte(uint8_t column)                 { return 0x00 | (column & 0x0F); }
-static inline uint8_t sh1106_set_upper_column_byte(uint8_t column)                 { return 0x10 | (column >> 4); }
-static inline uint8_t sh1106_set_pump_voltage_byte(uint8_t val)                    { return 0x30 | val; }
-static inline uint8_t sh1106_set_start_line_byte(uint8_t val)                      { return 0x40 | val; }
-static inline uint8_t sh1106_set_contrast_byte(uint8_t contrast)                   { return contrast; }
-static inline uint8_t sh1106_set_segment_remap_byte(bool reverse)                  { return reverse ? 0xA1 : 0xA0; }
-static inline uint8_t sh1106_set_all_pixels_on_byte(bool on)                       { return on ? 0xA5 : 0xA4; }
-static inline uint8_t sh1106_set_flip_pixels_byte(bool reverse)                    { return reverse ? 0xA7 : 0xA6; }
-static inline uint8_t sh1106_set_multiplex_ratio_byte(uint8_t val)                 { return 0x3F & (val - 1); }
-static inline uint8_t sh1106_set_dc_converter_byte(bool on)                        { return on ? 0x8B : 0x8A; }
-static inline uint8_t sh1106_set_display_on_byte(bool on)                          { return on ? 0xAF : 0xAE; }
-static inline uint8_t sh1106_set_vertical_flip_byte(bool flip)                     { return flip ? 0xC0 : 0xC8; }
-static inline uint8_t sh1106_set_display_offset_byte(uint8_t offset)               { return 0x3F & offset; }
-static inline uint8_t sh1106_set_clock_byte(uint8_t ratio, uint8_t frequency)      { return (frequency << 4) | (0x0F & (ratio - 1)); }
+static inline uint8_t sh1106_set_page_byte(uint8_t page)                                   { return 0xB0 | page; }
+static inline uint8_t sh1106_set_lower_column_byte(uint8_t column)                         { return 0x00 | (column & 0x0F); }
+static inline uint8_t sh1106_set_upper_column_byte(uint8_t column)                         { return 0x10 | (column >> 4); }
+static inline uint8_t sh1106_set_pump_voltage_byte(uint8_t val)                            { return 0x30 | val; }
+static inline uint8_t sh1106_set_start_line_byte(uint8_t val)                              { return 0x40 | val; }
+static inline uint8_t sh1106_set_contrast_byte(uint8_t contrast)                           { return contrast; }
+static inline uint8_t sh1106_set_segment_remap_byte(bool reverse)                          { return reverse ? 0xA1 : 0xA0; }
+static inline uint8_t sh1106_set_all_pixels_on_byte(bool on)                               { return on ? 0xA5 : 0xA4; }
+static inline uint8_t sh1106_set_flip_pixels_byte(bool reverse)                            { return reverse ? 0xA7 : 0xA6; }
+static inline uint8_t sh1106_set_multiplex_ratio_byte(uint8_t val)                         { return 0x3F & (val - 1); }
+static inline uint8_t sh1106_set_dc_converter_byte(bool on)                                { return on ? 0x8B : 0x8A; }
+static inline uint8_t sh1106_set_display_on_byte(bool on)                                  { return on ? 0xAF : 0xAE; }
+static inline uint8_t sh1106_set_vertical_flip_byte(bool flip)                             { return flip ? 0xC0 : 0xC8; }
+static inline uint8_t sh1106_set_offset_byte(uint8_t offset)                               { return 0x3F & offset; }
+static inline uint8_t sh1106_set_clock_byte(uint8_t ratio, uint8_t frequency)              { return (frequency << 4) | (0x0F & (ratio - 1)); }
 static inline uint8_t sh1106_set_charge_periods_byte(uint8_t discharge, uint8_t precharge) { return (discharge << 4) | (0x0F & precharge); }
-static inline uint8_t sh1106_set_pads_byte(bool alternative)                       { return alternative ? 0x12 : 0x02; }
-static inline uint8_t sh1106_set_vcom_deselect_byte(uint8_t val)                   { return val; }
+static inline uint8_t sh1106_set_pad_config_byte(bool alternative)                         { return alternative ? 0x12 : 0x02; }
+static inline uint8_t sh1106_set_vcom_deselect_voltage_byte(uint8_t val)                   { return val; }
+
+void sh1106_set_pump_voltage(sh1106_t *display, uint8_t val)           { display->config.pump_voltage = val; display->config_updates.pump_voltage = true; }
+void sh1106_set_start_line(sh1106_t *display, uint8_t val)             { display->config.start_line = val; display->config_updates.start_line = true; }
+void sh1106_set_contrast(sh1106_t *display, uint8_t contrast)          { display->config.contrast = contrast; display->config_updates.contrast = true; }
+void sh1106_set_segment_remap(sh1106_t *display, bool reverse)         { display->config.segment_remap = reverse; display->config_updates.segment_remap = true; }
+void sh1106_set_all_pixels_on(sh1106_t *display, bool on)              { display->config.all_pixels_on = on; display->config_updates.all_pixels_on = true; }
+void sh1106_set_flip_pixels(sh1106_t *display, bool reverse)           { display->config.flip_pixels = reverse; display->config_updates.flip_pixels = true; }
+void sh1106_set_multiplex_ratio(sh1106_t *display, uint8_t val)        { display->config.multiplex_ratio = val; display->config_updates.multiplex_ratio = true; }
+void sh1106_set_dc_converter(sh1106_t *display, bool on)               { display->config.dc_converter = on; display->config_updates.dc_converter = true; }
+void sh1106_set_display_on(sh1106_t *display, bool on)                 { display->config.display_on = on; display->config_updates.display_on = true; }
+void sh1106_set_vertical_flip(sh1106_t *display, bool flip)            { display->config.vertical_flip = flip; display->config_updates.vertical_flip = true; }
+void sh1106_set_offset(sh1106_t *display, uint8_t offset)              { display->config.offset = offset; display->config_updates.offset = true; }
+void sh1106_set_clock_ratio(sh1106_t *display, uint8_t ratio)          { display->config.clock_ratio = ratio; display->config_updates.clock_ratio = true; }
+void sh1106_set_clock_frequency(sh1106_t *display, uint8_t frequency)  { display->config.clock_frequency = frequency; display->config_updates.clock_frequency = true; }
+void sh1106_set_discharge_period(sh1106_t *display, uint8_t discharge) { display->config.discharge_period = discharge; display->config_updates.discharge_period = true; }
+void sh1106_set_precharge_period(sh1106_t *display, uint8_t precharge) { display->config.precharge_period = precharge; display->config_updates.precharge_period = true; }
+void sh1106_set_pad_config(sh1106_t *display, bool alternative)        { display->config.pad_config = alternative; display->config_updates.pad_config = true; }
+void sh1106_set_vcom_deselect_voltage(sh1106_t *display, uint8_t val)  { display->config.vcom_deselect_voltage = val; display->config_updates.vcom_deselect_voltage = true; }
 
 static inline bool bit_check(uint8_t val, uint8_t pos) { return (val & (1 << pos)) > 0x00; }
 
@@ -62,10 +103,10 @@ sh1106_config_t sh1106_default_config(void) {
         .pump_voltage = 2,
         .start_line = 0,
         .contrast = 128,
-        .segment_reverse = true,
+        .segment_remap = true,
         .all_pixels_on = false,
         .flip_pixels = false,
-        .muliplex_ratio = 64,
+        .multiplex_ratio = 64,
         .dc_converter = true,
         .display_on = true,
         .vertical_flip = false,
@@ -74,7 +115,7 @@ sh1106_config_t sh1106_default_config(void) {
         .clock_frequency = 8,
         .precharge_period = 2,
         .discharge_period = 2,
-        .alt_pad_config = true,
+        .pad_config = true,
         .vcom_deselect_voltage = 0x20,
     };
     return config;
@@ -116,24 +157,24 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
         sh1106_set_start_line_byte(conf.start_line), // 4
         0x81, // 5 mode
         sh1106_set_contrast_byte(conf.contrast), // 5 val
-        sh1106_set_segment_remap_byte(conf.segment_reverse), // 6
+        sh1106_set_segment_remap_byte(conf.segment_remap), // 6
         sh1106_set_all_pixels_on_byte(conf.all_pixels_on), // 7
         sh1106_set_flip_pixels_byte(conf.flip_pixels), // 8
         0xA8, // 9 mode
-        sh1106_set_multiplex_ratio_byte(conf.muliplex_ratio), // 9 val
+        sh1106_set_multiplex_ratio_byte(conf.multiplex_ratio), // 9 val
         0xAD, // 10 mode
         sh1106_set_dc_converter_byte(conf.dc_converter), // 10 val
         sh1106_set_vertical_flip_byte(conf.vertical_flip), // 13
         0xD3, // 14 mode
-        sh1106_set_display_offset_byte(conf.offset), // 14 val
+        sh1106_set_offset_byte(conf.offset), // 14 val
         0xD5, // 15 mode
         sh1106_set_clock_byte(conf.clock_ratio, conf.clock_frequency), // 15 val
         0xD9, // 16 mode
         sh1106_set_charge_periods_byte(conf.discharge_period, conf.precharge_period), // 16 val
         0xDA, // 17 mode
-        sh1106_set_pads_byte(conf.alt_pad_config), // 17 val
+        sh1106_set_pad_config_byte(conf.pad_config), // 17 val
         0xDB, // 18 mode
-        sh1106_set_vcom_deselect_byte(conf.vcom_deselect_voltage), // 18 val
+        sh1106_set_vcom_deselect_voltage_byte(conf.vcom_deselect_voltage), // 18 val
         sh1106_set_display_on_byte(conf.display_on), // 11
     };
 
