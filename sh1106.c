@@ -14,6 +14,7 @@ struct sh1106_t {
     SemaphoreHandle_t frame_mutex;
     uint8_t page_change;
     bool force_update;
+    sh1106_config_t config;
 };
 
 static inline uint8_t sh1106_set_page_byte(uint8_t page)                           { return 0xB0 | page; }
@@ -105,6 +106,7 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
     display->frame_mutex = xSemaphoreCreateMutex();
     display->page_change = 0x00;
     display->force_update = false;
+    display->config = conf;
 
     // sh1106 initialization
     uint8_t init_cmd_buf[] = {
