@@ -79,13 +79,34 @@ void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
     int cmd_amt = 1;
 
     // single byte commands
-    if (display->config_updates.pump_voltage) 	{ cmd_buf[cmd_amt++] = sh1106_set_pump_voltage_byte(display->config.pump_voltage); display->config_updates.pump_voltage = false; }
-    if (display->config_updates.start_line) 	{ cmd_buf[cmd_amt++] = sh1106_set_start_line_byte(display->config.start_line); display->config_updates.start_line = false; }
-    if (display->config_updates.segment_remap) 	{ cmd_buf[cmd_amt++] = sh1106_set_segment_remap_byte(display->config.segment_remap); display->config_updates.segment_remap = false; }
-    if (display->config_updates.all_pixels_on) 	{ cmd_buf[cmd_amt++] = sh1106_set_all_pixels_on_byte(display->config.all_pixels_on); display->config_updates.all_pixels_on = false; }
-    if (display->config_updates.flip_pixels) 	{ cmd_buf[cmd_amt++] = sh1106_set_flip_pixels_byte(display->config.flip_pixels); display->config_updates.flip_pixels = false; }
-    if (display->config_updates.display_on) 	{ cmd_buf[cmd_amt++] = sh1106_set_display_on_byte(display->config.display_on); display->config_updates.display_on = false; }
-    if (display->config_updates.vertical_flip) 	{ cmd_buf[cmd_amt++] = sh1106_set_vertical_flip_byte(display->config.vertical_flip); display->config_updates.vertical_flip = false; }
+    if (display->config_updates.pump_voltage) {
+        cmd_buf[cmd_amt++] = sh1106_set_pump_voltage_byte(display->config.pump_voltage);
+        display->config_updates.pump_voltage = false;
+    }
+    if (display->config_updates.start_line) {
+        cmd_buf[cmd_amt++] = sh1106_set_start_line_byte(display->config.start_line);
+        display->config_updates.start_line = false;
+    }
+    if (display->config_updates.segment_remap) {
+        cmd_buf[cmd_amt++] = sh1106_set_segment_remap_byte(display->config.segment_remap);
+        display->config_updates.segment_remap = false;
+    }
+    if (display->config_updates.all_pixels_on) {
+        cmd_buf[cmd_amt++] = sh1106_set_all_pixels_on_byte(display->config.all_pixels_on);
+        display->config_updates.all_pixels_on = false;
+    }
+    if (display->config_updates.flip_pixels) {
+        cmd_buf[cmd_amt++] = sh1106_set_flip_pixels_byte(display->config.flip_pixels);
+        display->config_updates.flip_pixels = false;
+    }
+    if (display->config_updates.display_on) {
+        cmd_buf[cmd_amt++] = sh1106_set_display_on_byte(display->config.display_on);
+        display->config_updates.display_on = false;
+    }
+    if (display->config_updates.vertical_flip) {
+        cmd_buf[cmd_amt++] = sh1106_set_vertical_flip_byte(display->config.vertical_flip);
+        display->config_updates.vertical_flip = false;
+    }
 
     // double byte commands
     if (display->config_updates.contrast) {
