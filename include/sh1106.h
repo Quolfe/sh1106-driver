@@ -66,6 +66,8 @@ void sh1106_set_precharge_period(sh1106_t *display, uint8_t precharge);
 void sh1106_set_pads(sh1106_t *display, bool alternative);
 void sh1106_set_vcom_deselect(sh1106_t *display, uint8_t val);
 
+void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
+
 void sh1106_clear_frame(sh1106_t *display);
 void sh1106_clear_frame_changes(sh1106_t *display);
 

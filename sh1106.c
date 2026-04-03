@@ -7,8 +7,6 @@
 #include <string.h>
 
 typedef struct {
-    bool device_address;
-    bool scl_speed_hz;
     bool pump_voltage;
     bool start_line;
     bool contrast;
@@ -20,10 +18,8 @@ typedef struct {
     bool display_on;
     bool vertical_flip;
     bool offset;
-    bool clock_ratio;
-    bool clock_frequency;
-    bool precharge_period;
-    bool discharge_period;
+    bool clock;
+    bool periods;
     bool pad_config;
     bool vcom_deselect_voltage;
 } sh1106_config_updates_t;
@@ -70,12 +66,76 @@ void sh1106_set_dc_converter(sh1106_t *display, bool on)               { display
 void sh1106_set_display_on(sh1106_t *display, bool on)                 { display->config.display_on = on; display->config_updates.display_on = true; }
 void sh1106_set_vertical_flip(sh1106_t *display, bool flip)            { display->config.vertical_flip = flip; display->config_updates.vertical_flip = true; }
 void sh1106_set_offset(sh1106_t *display, uint8_t offset)              { display->config.offset = offset; display->config_updates.offset = true; }
-void sh1106_set_clock_ratio(sh1106_t *display, uint8_t ratio)          { display->config.clock_ratio = ratio; display->config_updates.clock_ratio = true; }
-void sh1106_set_clock_frequency(sh1106_t *display, uint8_t frequency)  { display->config.clock_frequency = frequency; display->config_updates.clock_frequency = true; }
-void sh1106_set_discharge_period(sh1106_t *display, uint8_t discharge) { display->config.discharge_period = discharge; display->config_updates.discharge_period = true; }
-void sh1106_set_precharge_period(sh1106_t *display, uint8_t precharge) { display->config.precharge_period = precharge; display->config_updates.precharge_period = true; }
+void sh1106_set_clock_ratio(sh1106_t *display, uint8_t ratio)          { display->config.clock_ratio = ratio; display->config_updates.clock = true; }
+void sh1106_set_clock_frequency(sh1106_t *display, uint8_t frequency)  { display->config.clock_frequency = frequency; display->config_updates.clock = true; }
+void sh1106_set_discharge_period(sh1106_t *display, uint8_t discharge) { display->config.discharge_period = discharge; display->config_updates.periods = true; }
+void sh1106_set_precharge_period(sh1106_t *display, uint8_t precharge) { display->config.precharge_period = precharge; display->config_updates.periods = true; }
 void sh1106_set_pad_config(sh1106_t *display, bool alternative)        { display->config.pad_config = alternative; display->config_updates.pad_config = true; }
 void sh1106_set_vcom_deselect_voltage(sh1106_t *display, uint8_t val)  { display->config.vcom_deselect_voltage = val; display->config_updates.vcom_deselect_voltage = true; }
+
+void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
+    uint8_t cmd_buf[32];
+    cmd_buf[0] = 0x00;
+    int cmd_amt = 1;
+
+    // single byte commands
+    if (display->config_updates.pump_voltage) 	{ cmd_buf[cmd_amt++] = sh1106_set_pump_voltage_byte(display->config.pump_voltage); display->config_updates.pump_voltage = false; }
+    if (display->config_updates.start_line) 	{ cmd_buf[cmd_amt++] = sh1106_set_start_line_byte(display->config.start_line); display->config_updates.start_line = false; }
+    if (display->config_updates.segment_remap) 	{ cmd_buf[cmd_amt++] = sh1106_set_segment_remap_byte(display->config.segment_remap); display->config_updates.segment_remap = false; }
+    if (display->config_updates.all_pixels_on) 	{ cmd_buf[cmd_amt++] = sh1106_set_all_pixels_on_byte(display->config.all_pixels_on); display->config_updates.all_pixels_on = false; }
+    if (display->config_updates.flip_pixels) 	{ cmd_buf[cmd_amt++] = sh1106_set_flip_pixels_byte(display->config.flip_pixels); display->config_updates.flip_pixels = false; }
+    if (display->config_updates.display_on) 	{ cmd_buf[cmd_amt++] = sh1106_set_display_on_byte(display->config.display_on); display->config_updates.display_on = false; }
+    if (display->config_updates.vertical_flip) 	{ cmd_buf[cmd_amt++] = sh1106_set_vertical_flip_byte(display->config.vertical_flip); display->config_updates.vertical_flip = false; }
+
+    // double byte commands
+    if (display->config_updates.contrast) {
+        cmd_buf[cmd_amt++] = 0x81;
+        cmd_buf[cmd_amt++] = sh1106_set_contrast_byte(display->config.contrast);
+        display->config_updates.contrast = false;
+    }
+    if (display->config_updates.multiplex_ratio) {
+        cmd_buf[cmd_amt++] = 0xA8;
+        cmd_buf[cmd_amt++] = sh1106_set_multiplex_ratio_byte(display->config.multiplex_ratio);
+        display->config_updates.multiplex_ratio = false;
+    }
+    if (display->config_updates.dc_converter) {
+        cmd_buf[cmd_amt++] = 0xAD;
+        cmd_buf[cmd_amt++] = sh1106_set_dc_converter_byte(display->config.dc_converter);
+        display->config_updates.dc_converter = false;
+    }
+    if (display->config_updates.offset) {
+        cmd_buf[cmd_amt++] = 0xD3;
+        cmd_buf[cmd_amt++] = sh1106_set_offset_byte(display->config.offset);
+        display->config_updates.offset = false;
+    }
+    if (display->config_updates.clock) {
+        cmd_buf[cmd_amt++] = 0xD5;
+        cmd_buf[cmd_amt++] = sh1106_set_clock_byte(display->config.clock_ratio, display->config.clock_frequency);
+        display->config_updates.clock = false;
+    }
+    if (display->config_updates.periods) {
+        cmd_buf[cmd_amt++] = 0xD9;
+        cmd_buf[cmd_amt++] = sh1106_set_charge_periods_byte(display->config.discharge_period, display->config.precharge_period);
+        display->config_updates.periods  = false;
+    }
+    if (display->config_updates.pad_config) {
+        cmd_buf[cmd_amt++] = 0xDA;
+        cmd_buf[cmd_amt++] = sh1106_set_pad_config_byte(display->config.pad_config);
+        display->config_updates.pad_config = false;
+    }
+    if (display->config_updates.vcom_deselect_voltage) {
+        cmd_buf[cmd_amt++] = 0xDB;
+        cmd_buf[cmd_amt++] = sh1106_set_vcom_deselect_voltage_byte(display->config.vcom_deselect_voltage);
+        display->config_updates.vcom_deselect_voltage = false;
+    }
+
+    if (cmd_amt == 1)
+        return;
+
+    xSemaphoreTake(i2c_mutex, portMAX_DELAY);
+    i2c_master_transmit(display->handle, cmd_buf, cmd_amt, 500);
+    xSemaphoreGive(i2c_mutex);
+}
 
 static inline bool bit_check(uint8_t val, uint8_t pos) { return (val & (1 << pos)) > 0x00; }
 
