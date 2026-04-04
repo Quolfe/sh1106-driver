@@ -6,6 +6,18 @@
 #include <stdint.h>
 #include <string.h>
 
+#define SH1106_COMMAND_MODE 0x00
+#define SH1106_DATA_MODE 0x40
+
+#define SH1106_SET_CONTRAST_MODE 0x81
+#define SH1106_SET_MULTIPLEX_RATIO_MODE 0xA8
+#define SH1106_SET_DC_CONVERTER_MODE 0xAD
+#define SH1106_SET_OFFSET_MODE 0xD3
+#define SH1106_SET_CLOCK_MODE 0xD5
+#define SH1106_SET_PERIODS_MODE 0xD9
+#define SH1106_SET_PAD_CONFIG_MODE 0xDA
+#define SH1106_SET_VCOM_VOLTAGE_MODE 0xDB
+
 typedef struct {
     bool pump_voltage;
     bool start_line;
@@ -75,7 +87,7 @@ void sh1106_set_vcom_deselect_voltage(sh1106_t *display, uint8_t val)  { display
 
 void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
     uint8_t cmd_buf[32];
-    cmd_buf[0] = 0x00;
+    cmd_buf[0] = SH1106_COMMAND_MODE;
     int cmd_amt = 1;
 
     // single byte commands
@@ -110,42 +122,42 @@ void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
 
     // double byte commands
     if (display->config_updates.contrast) {
-        cmd_buf[cmd_amt++] = 0x81;
+        cmd_buf[cmd_amt++] = SH1106_SET_CONTRAST_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_contrast_byte(display->config.contrast);
         display->config_updates.contrast = false;
     }
     if (display->config_updates.multiplex_ratio) {
-        cmd_buf[cmd_amt++] = 0xA8;
+        cmd_buf[cmd_amt++] = SH1106_SET_MULTIPLEX_RATIO_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_multiplex_ratio_byte(display->config.multiplex_ratio);
         display->config_updates.multiplex_ratio = false;
     }
     if (display->config_updates.dc_converter) {
-        cmd_buf[cmd_amt++] = 0xAD;
+        cmd_buf[cmd_amt++] = SH1106_SET_DC_CONVERTER_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_dc_converter_byte(display->config.dc_converter);
         display->config_updates.dc_converter = false;
     }
     if (display->config_updates.offset) {
-        cmd_buf[cmd_amt++] = 0xD3;
+        cmd_buf[cmd_amt++] = SH1106_SET_OFFSET_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_offset_byte(display->config.offset);
         display->config_updates.offset = false;
     }
     if (display->config_updates.clock) {
-        cmd_buf[cmd_amt++] = 0xD5;
+        cmd_buf[cmd_amt++] = SH1106_SET_CLOCK_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_clock_byte(display->config.clock_ratio, display->config.clock_frequency);
         display->config_updates.clock = false;
     }
     if (display->config_updates.periods) {
-        cmd_buf[cmd_amt++] = 0xD9;
+        cmd_buf[cmd_amt++] = SH1106_SET_PERIODS_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_charge_periods_byte(display->config.discharge_period, display->config.precharge_period);
         display->config_updates.periods  = false;
     }
     if (display->config_updates.pad_config) {
-        cmd_buf[cmd_amt++] = 0xDA;
+        cmd_buf[cmd_amt++] = SH1106_SET_PAD_CONFIG_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_pad_config_byte(display->config.pad_config);
         display->config_updates.pad_config = false;
     }
     if (display->config_updates.vcom_deselect_voltage) {
-        cmd_buf[cmd_amt++] = 0xDB;
+        cmd_buf[cmd_amt++] = SH1106_SET_VCOM_VOLTAGE_MODE;
         cmd_buf[cmd_amt++] = sh1106_set_vcom_deselect_voltage_byte(display->config.vcom_deselect_voltage);
         display->config_updates.vcom_deselect_voltage = false;
     }
@@ -232,29 +244,29 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
 
     // sh1106 initialization
     uint8_t init_cmd_buf[] = {
-        0x00, // Command byte
+        SH1106_COMMAND_MODE, // Command byte
         sh1106_set_display_on_byte(false), // 11
         sh1106_set_pump_voltage_byte(conf.pump_voltage), // 3
         sh1106_set_start_line_byte(conf.start_line), // 4
-        0x81, // 5 mode
+        SH1106_SET_CONTRAST_MODE, // 5 mode
         sh1106_set_contrast_byte(conf.contrast), // 5 val
         sh1106_set_segment_remap_byte(conf.segment_remap), // 6
         sh1106_set_all_pixels_on_byte(conf.all_pixels_on), // 7
         sh1106_set_flip_pixels_byte(conf.flip_pixels), // 8
-        0xA8, // 9 mode
+        SH1106_SET_MULTIPLEX_RATIO_MODE, // 9 mode
         sh1106_set_multiplex_ratio_byte(conf.multiplex_ratio), // 9 val
-        0xAD, // 10 mode
+        SH1106_SET_DC_CONVERTER_MODE, // 10 mode
         sh1106_set_dc_converter_byte(conf.dc_converter), // 10 val
         sh1106_set_vertical_flip_byte(conf.vertical_flip), // 13
-        0xD3, // 14 mode
+        SH1106_SET_OFFSET_MODE, // 14 mode
         sh1106_set_offset_byte(conf.offset), // 14 val
-        0xD5, // 15 mode
+        SH1106_SET_CLOCK_MODE, // 15 mode
         sh1106_set_clock_byte(conf.clock_ratio, conf.clock_frequency), // 15 val
-        0xD9, // 16 mode
+        SH1106_SET_PERIODS_MODE, // 16 mode
         sh1106_set_charge_periods_byte(conf.discharge_period, conf.precharge_period), // 16 val
-        0xDA, // 17 mode
+        SH1106_SET_PAD_CONFIG_MODE, // 17 mode
         sh1106_set_pad_config_byte(conf.pad_config), // 17 val
-        0xDB, // 18 mode
+        SH1106_SET_VCOM_VOLTAGE_MODE, // 18 mode
         sh1106_set_vcom_deselect_voltage_byte(conf.vcom_deselect_voltage), // 18 val
         sh1106_set_display_on_byte(conf.display_on), // 11
     };
@@ -292,7 +304,7 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
     // Clear display
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t pos_cmd_buf[] = {
-            0x00,
+            SH1106_COMMAND_MODE,
             sh1106_set_page_byte(page),
             sh1106_set_upper_column_byte(0),
             sh1106_set_lower_column_byte(0),
@@ -301,7 +313,7 @@ esp_err_t sh1106_init(sh1106_config_t conf, i2c_master_bus_handle_t i2c_handle, 
         i2c_master_transmit(display->handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
 
         uint8_t clear_buf[133];
-        clear_buf[0] = 0x40;
+        clear_buf[0] = SH1106_DATA_MODE;
         memset(clear_buf + 1, 0x00, 132);
 
         i2c_master_transmit(display->handle, clear_buf, 133, 500);
@@ -330,7 +342,7 @@ void sh1106_update_full_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) 
     xSemaphoreTake(i2c_mutex, portMAX_DELAY);
     for (uint8_t page = 0; page < 8; page++) {
         uint8_t pos_cmd_buf[] = {
-            0x00,
+            SH1106_COMMAND_MODE,
             sh1106_set_page_byte(page),
             sh1106_set_upper_column_byte(2),
             sh1106_set_lower_column_byte(2),
@@ -338,7 +350,7 @@ void sh1106_update_full_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) 
         i2c_master_transmit(display->handle, pos_cmd_buf, sizeof(pos_cmd_buf) / sizeof(*pos_cmd_buf), 500);
 
         uint8_t data_buf[129];
-        data_buf[0] = 0x40;
+        data_buf[0] = SH1106_DATA_MODE;
         memcpy(data_buf + sizeof(*data_buf), display->frame_buf + page * 128, 128);
         i2c_master_transmit(display->handle, data_buf, 129, 500);
     }
@@ -352,13 +364,13 @@ void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) 
             continue;
         bool previous = false;
         uint8_t data_buf[129];
-        data_buf[0] = 0x40;
+        data_buf[0] = SH1106_DATA_MODE;
         uint8_t data_amt = 0;
         for (uint8_t col = 0; col < 128; col++) {
             bool update = bit_check(display->frame_change[page * 16 + col / 8], col % 8);
             if (!update && previous) {
                 uint8_t pos_cmd_buf[] = {
-                    0x00,
+                    SH1106_COMMAND_MODE,
                     sh1106_set_page_byte(page),
                     sh1106_set_upper_column_byte(col - data_amt + 2),
                     sh1106_set_lower_column_byte(col - data_amt + 2),
@@ -374,7 +386,7 @@ void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex) 
         }
         if (previous) {
             uint8_t pos_cmd_buf[] = {
-                0x00,
+                SH1106_COMMAND_MODE,
                 sh1106_set_page_byte(page),
                 sh1106_set_upper_column_byte(128 - data_amt + 2),
                 sh1106_set_lower_column_byte(128 - data_amt + 2),
