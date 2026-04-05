@@ -71,9 +71,9 @@ void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
 void sh1106_clear_frame(sh1106_t *display);
 void sh1106_clear_frame_changes(sh1106_t *display);
 
-void sh1106_update_full_display(sh1106_t *display, SemaphoreHandle_t i2c_handle);
-void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_handle);
-void sh1106_update_display(sh1106_t *display, SemaphoreHandle_t i2c_handle);
+void sh1106_update_full_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
+void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
+void sh1106_update_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
 
 void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on);
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap);
