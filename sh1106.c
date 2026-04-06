@@ -445,6 +445,29 @@ void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
     xSemaphoreGive(display->frame_mutex);
 } 
 
+void sh1106_create_bitmap(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest) {
+    int data_size = height / 8 * width + width;
+    uint8_t *data = malloc(data_size);
+    if (data == NULL)
+        return;
+    memset(data, 0x00, data_size);
+    for (uint8_t x = 0; x < width; x++) {
+        for (uint8_t y = 0; y < height; y++) {
+            if (bool_data[y * width + x])
+                data[y / 8 * width + x] = bit_set(data[y / 8 * width + x], y % 8, true);
+        }
+    }
+    dest->data = data;
+    dest->width = width;
+    dest->height = height;
+}
+
+void sh1106_free_bitmap(bitmap_t bitmap) {
+    free(bitmap.data);
+    bitmap.width = 0;
+    bitmap.height = 0;
+}
+
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap) {
     for (uint8_t y = 0; y < bitmap.y_size; y++) {
         for (uint8_t x = 0; x < bitmap.x_size; x++) {

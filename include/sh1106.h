@@ -32,11 +32,9 @@ typedef struct {
 typedef struct sh1106_t sh1106_t;
 
 typedef struct {
-    uint8_t x_size;
-    uint8_t y_size;
-    uint8_t x;
-    uint8_t y;
     uint8_t *data;
+    uint8_t width;
+    uint8_t height;
 } bitmap_t;
 
 sh1106_t *sh1106_new(void);
@@ -76,6 +74,9 @@ void sh1106_update_part_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
 void sh1106_update_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
 
 void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on);
+
+void sh1106_create_bitmap(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest);
+void sh1106_free_bitmap(bitmap_t bitmap);
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap);
 
 #endif
