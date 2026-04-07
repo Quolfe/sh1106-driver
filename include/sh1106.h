@@ -75,8 +75,9 @@ void sh1106_update_display(sh1106_t *display, SemaphoreHandle_t i2c_mutex);
 
 void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on);
 
-void sh1106_create_bitmap(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest);
-void sh1106_free_bitmap(bitmap_t bitmap);
+bitmap_t sh1106_bitmap_new(bool *bool_data, uint8_t width, uint8_t height);
+void sh1106_bitmap_destroy(bitmap_t bitmap);
+void sh1106_bitmap_init(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest);
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap);
 
 #endif

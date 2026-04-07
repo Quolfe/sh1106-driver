@@ -445,11 +445,11 @@ void sh1106_draw_pixel(sh1106_t *display, uint8_t x, uint8_t y, bool on) {
     xSemaphoreGive(display->frame_mutex);
 } 
 
-void sh1106_create_bitmap(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest) {
+bitmap_t sh1106_bitmap_new(bool *bool_data, uint8_t width, uint8_t height) {
     int data_size = height / 8 * width + width;
     uint8_t *data = malloc(data_size);
     if (data == NULL)
-        return;
+        return (bitmap_t) { .data = NULL, .height = 0, .width = 0 };
     memset(data, 0x00, data_size);
     for (uint8_t x = 0; x < width; x++) {
         for (uint8_t y = 0; y < height; y++) {
@@ -457,21 +457,22 @@ void sh1106_create_bitmap(bool *bool_data, uint8_t width, uint8_t height, bitmap
                 data[y / 8 * width + x] = bit_set(data[y / 8 * width + x], y % 8, true);
         }
     }
-    dest->data = data;
-    dest->width = width;
-    dest->height = height;
+    bitmap_t res = {
+        .data = data,
+        .width = width,
+        .height = height,
+    };
+    return res;
 }
 
-void sh1106_free_bitmap(bitmap_t bitmap) {
+void sh1106_bitmap_destroy(bitmap_t bitmap) {
     free(bitmap.data);
     bitmap.width = 0;
     bitmap.height = 0;
 }
 
+void sh1106_bitmap_init(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest) {
+}
+
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap) {
-    for (uint8_t y = 0; y < bitmap.y_size; y++) {
-        for (uint8_t x = 0; x < bitmap.x_size; x++) {
-            sh1106_draw_pixel(display, x + bitmap.x, y + bitmap.y, bitmap.data[y * bitmap.x_size + x]);
-        }
-    }
 }
