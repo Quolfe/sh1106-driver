@@ -487,13 +487,13 @@ void sh1106_bitmap_init(bool *bool_data, uint8_t width, uint8_t height, bitmap_t
 }
 
 void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap, uint8_t x, uint8_t y) {
-    if (bitmap.height > 1) {
+    if (bitmap.height > 8) {
         return; // REMOVE
     }
 
     xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
     for (uint8_t i = 0; i < bitmap.data_length; i++) {
-        uint8_t page = (i / bitmap.width + y) / 8;
+        uint8_t page = y / 8 + i / bitmap.width;
         uint8_t col = x + i % bitmap.width;
         if (page >= 8)
             break;
