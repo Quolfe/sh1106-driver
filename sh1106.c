@@ -476,8 +476,9 @@ void sh1106_bitmap_destroy(bitmap_t bitmap) {
 void sh1106_bitmap_init(bool *bool_data, uint8_t width, uint8_t height, bitmap_t *dest) {
     for (uint8_t x = 0; x < width; x++) {
         for (uint8_t y = 0; y < height; y++) {
-            if (bool_data[y * width + x])
+            if (bool_data[y * width + x]) {
                 dest->data[y / 8 * width + x] = bit_set(dest->data[y / 8 * width + x], y % 8, true);
+            }
         }
     }
     dest->data_length = height / 8 * width;
@@ -500,7 +501,7 @@ void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap, uint8_t x, uint8_t y
             continue;
         uint8_t bmap_byte = bitmap.data[i];
         uint8_t frame_byte = display->frame_buf[page * 128 + x];
-        uint8_t new_byte = bmap_byte & (0xFF >> (8 - bitmap.height)) | frame_byte & (0xFF << bitmap.height);
+        uint8_t new_byte = (bmap_byte & (0xFF >> (8 - bitmap.height))) | (frame_byte & (0xFF << bitmap.height));
         if (new_byte == frame_byte)
             continue;
         display->frame_buf[page * 128 + x] = new_byte;
