@@ -459,6 +459,7 @@ bitmap_t sh1106_bitmap_new(bool *bool_data, uint8_t width, uint8_t height) {
     }
     bitmap_t res = {
         .data = data,
+        .data_length = data_size,
         .width = width,
         .height = height,
     };
@@ -467,6 +468,7 @@ bitmap_t sh1106_bitmap_new(bool *bool_data, uint8_t width, uint8_t height) {
 
 void sh1106_bitmap_destroy(bitmap_t bitmap) {
     free(bitmap.data);
+    bitmap.data_length = 0;
     bitmap.width = 0;
     bitmap.height = 0;
 }
@@ -478,9 +480,37 @@ void sh1106_bitmap_init(bool *bool_data, uint8_t width, uint8_t height, bitmap_t
                 dest->data[y / 8 * width + x] = bit_set(dest->data[y / 8 * width + x], y % 8, true);
         }
     }
+    dest->data_length = height / 8 * width;
     dest->width = width;
     dest->height = height;
 }
 
-void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap) {
+void sh1106_draw_bitmap(sh1106_t *display, bitmap_t bitmap, uint8_t x, uint8_t y) {
+    if (bitmap.height > 1) {
+        return; // REMOVE
+    }
+
+    xSemaphoreTake(display->frame_mutex, portMAX_DELAY);
+    for (uint8_t i = 0; i < bitmap.data_length; i++) {
+        uint8_t page = y / 8 + i / bitmap.width;
+        uint8_t col = x + i % bitmap.width;
+        if (page >= 8)
+            break;
+        if (col >= 128)
+            continue;
+        uint8_t bmap_byte = bitmap.data[i];
+        uint8_t frame_byte = display->frame_buf[page * 128 + x];
+        uint8_t new_byte = bmap_byte & (0xFF >> (8 - bitmap.height)) | frame_byte & (0xFF << bitmap.height);
+        if (new_byte == frame_byte)
+            continue;
+        display->frame_buf[page * 128 + x] = new_byte;
+
+        bool change_set = bit_check(display->frame_change[page * 16 + col / 8], col % 8);
+        if (!change_set) {
+            display->frame_change[page * 16 + col / 8] |= 0x01 << (col % 8);
+            display->page_change |= 0x01 << page;
+            display->frame_change_amt++;
+        }
+    }
+    xSemaphoreGive(display->frame_mutex);
 }
