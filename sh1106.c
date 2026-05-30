@@ -171,7 +171,7 @@ void sh1106_update_config(sh1106_t *display, SemaphoreHandle_t i2c_mutex) {
 }
 
 static inline bool bit_check(uint8_t val, uint8_t pos) { return (val & (1 << pos)) > 0x00; }
-static inline bool bit_set(uint8_t val, uint8_t pos, bool on) { return on ? val | (0x01 << pos) : val & ((0x01 << pos) ^ 0xFF); }
+static inline uint8_t bit_set(uint8_t val, uint8_t pos, bool on) { return val ^ (((0x01 << pos) & val) ^ (on << pos)); }
 
 sh1106_t *sh1106_new(void) {
     sh1106_t *ptr = malloc(sizeof(sh1106_t));
