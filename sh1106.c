@@ -453,8 +453,7 @@ bitmap_t sh1106_bitmap_new(bool *bool_data, uint8_t width, uint8_t height) {
     memset(data, 0x00, data_size);
     for (uint8_t x = 0; x < width; x++) {
         for (uint8_t y = 0; y < height; y++) {
-            if (bool_data[y * width + x])
-                data[y / 8 * width + x] = bit_set(data[y / 8 * width + x], y % 8, true);
+            data[y / 8 * width + x] = bit_set(data[y / 8 * width + x], y % 8, bool_data[y * width + x]);
         }
     }
     bitmap_t res = {
